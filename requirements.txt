@@ -1,0 +1,5 @@
+BeautifulSoup==3.2.1
+germanholidays>=0.10
+html5lib>=0.9
+requests>=2.18
+slackclient>=1.0.7
