@@ -4,3 +4,4 @@ germanholidays>=0.1.0
 html5lib>=0.9
 requests>=2.18
 slackclient>=1.0.7
+APScheduler==3.3.1

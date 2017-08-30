@@ -10,6 +10,9 @@ from bs4 import BeautifulSoup
 from german_holidays import get_german_holiday_calendar
 import requests
 from slackclient import SlackClient
+from apscheduler.schedulers.blocking import BlockingScheduler
+
+sched = BlockingScheduler(timezone="Europe/Berlin")
 
 # set locale to german (weekdays in German and needed for scraping)
 try:
@@ -27,6 +30,10 @@ GERMAN_HOLIDAY_CALENDAR = get_german_holiday_calendar('NW')()
 TODAY = datetime.date.today()
 TODAY_DAYNAME = datetime.datetime.now().strftime("%A")
 WEEKDAYS = tuple(calendar.day_name)[:6]
+
+NOTIFY_SCHEDULE = os.environ.get(
+    'NOTIFY_SCHEDULE', None).split(":")  # the notification time in the format HH:MM (24h schema)
+
 
 # canteen url and info for webpage processing
 CANTEEN_URL = 'http://www.stw-d.de/gastronomie/speiseplaene/mensa-universitaetsstrasse-duesseldorf/'
@@ -128,6 +135,7 @@ def scrape_and_format_canteen_menu(page_soup):
     return output
 
 
+@sched.scheduled_job('cron', day_of_week='mon-fri', hour=int(NOTIFY_SCHEDULE[0]), minute=int(NOTIFY_SCHEDULE[1]))
 def main():
     # if weekend or holiday today: exit program
     if (TODAY_DAYNAME not in WEEKDAYS) or (TODAY in GERMAN_HOLIDAY_CALENDAR.holidays()):
@@ -140,4 +148,4 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    sched.start()
