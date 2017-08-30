@@ -1,0 +1,1 @@
+worker: python hhu_mensa_slack.py
