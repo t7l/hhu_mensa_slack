@@ -4,6 +4,8 @@ import datetime
 import locale
 import re
 import sys
+import os
+
 from bs4 import BeautifulSoup
 from german_holidays import get_german_holiday_calendar
 import requests
@@ -11,10 +13,13 @@ from slackclient import SlackClient
 
 # set locale to german (weekdays in German and needed for scraping)
 try:
-    locale.setlocale(locale.LC_ALL, 'de_DE')
+    locale.setlocale(locale.LC_ALL, 'de_DE.utf8')
 except locale.Error as err:
-    print("Selected locale not available. Please install locale de_DE.utf8 first.")
-    sys.exit(0)
+    try:
+        locale.setlocale(locale.LC_ALL, 'de_DE.UTF-8')
+    except locale.Error as err:
+        print("Selected locale not available. Please install locale de_DE.utf8 first.")
+        sys.exit(0)
 
 # canteen (mensa) is open from monday to friday only and additionally
 # closed on german holidays
@@ -29,9 +34,9 @@ EXCLUDED_COMPONENTS = ['mehr informationen']
 CUSTOMER_TYPES = ['studenten', 'bedienstete', 'gäste']
 
 # slack data (token should be better in an environment variable)
-SLACK_TOKEN = 'YOUR_TOKEN_HERE'  # your slack token
+SLACK_TOKEN = os.environ.get('SLACK_TOKEN', None)  # your slack token
 # set to an existing channel, where canteen menu will be posted
-SLACK_CHANNEL = '#mensa'
+SLACK_CHANNEL = os.environ.get('SLACK_CHANNEL', None)
 SLACK_USERNAME = 'mensabot'  # user does not need to be added before
 SLACK_USERICON = ':fork_and_knife:'
 
@@ -98,10 +103,13 @@ def process_counter(counter):
 def post_canteen_menu_to_slack(menu):
     """Post message to Slack channel"""
     sc = SlackClient(SLACK_TOKEN)
-    sc.api_call(
+    call = sc.api_call(
         "chat.postMessage", channel=SLACK_CHANNEL, text=menu,
         username=SLACK_USERNAME, icon_emoji=SLACK_USERICON
     )
+    if not call['ok']:
+        print("Error while accessing Slack: {0}".format(call["error"]))
+        sys.exit(0)
 
 
 def scrape_and_format_canteen_menu(page_soup):
@@ -125,7 +133,6 @@ def main():
     if (TODAY_DAYNAME not in WEEKDAYS) or (TODAY in GERMAN_HOLIDAY_CALENDAR.holidays()):
         print("Mensa not open today, so there is no data to get...")
         sys.exit(0)
-
     page = requests.get(CANTEEN_URL)
     page_soup = BeautifulSoup(page.text, "html5lib")
     menu = scrape_and_format_canteen_menu(page_soup)
